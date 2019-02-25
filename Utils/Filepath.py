@@ -3,7 +3,7 @@ Here I will add all initial file path
 
 """
 import os
-os.chdir("d:/github/hazard_model")
+os.chdir("/Users/soumithri/Desktop/Projects/hazard_model")
 
 ### Collections of Mongo DB
 INTERACTION_COLLECTION = "Interactions"

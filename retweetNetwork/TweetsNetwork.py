@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 import networkx as nx
-
+import random
 import logging
 from retweetNetwork.Tweet import *
 from Utils.Filepath import USERS
@@ -9,8 +9,11 @@ class TweetsNetwork:
 
     # Vertex attribute
     USER_CREATE_TIME    = "create_time"
-    #DB_NAME = "old_tweets_2017"
-    DB_NAME = 'tweets'
+    #DB_NAME1 = "old_tweets_2017"
+    DB_NAME = 'tweetCorpus'
+    COLL_NAME = 'historical_tweets2'
+    PATTERN = "^STRANGER"
+    LIMIT = 10
 
     # Edge attribute
     EDGE_CREATE_TIME    = "create_time"
@@ -19,13 +22,14 @@ class TweetsNetwork:
     EDGE_REPLY_COUNT    = "reply_count"
     EDGE_MENTION_COUNT  = "mention_count"
 
+    UNIQUE_USERS_FILE  = './final_unique_users.txt'
 
     def __init__(self, show):
         logging.basicConfig(filename= show + ".log", level=logging.INFO, format='%(asctime)s %(message)s')
-        logging.info("staring")
+        logging.info("starting...")
         self.network = nx.DiGraph()
-        self.db = MongoClient()['stream_store']
-        self.coll = self.db[TweetsNetwork.DB_NAME]
+        self.db = MongoClient()[TweetsNetwork.DB_NAME]
+        self.coll = self.db[TweetsNetwork.COLL_NAME]
         #print(self.coll.find_one())
         self.show = show
 
@@ -33,10 +37,13 @@ class TweetsNetwork:
         assert isinstance(user_id, int), "User id must be int!"
         if user_id not in self.network:
             self.network.add_node(user_id, create_time = create_time)
-            print(self.network.node[user_id])
+            logging.info('Added user_id: {0} to the network'.format(user_id))
+            #print(self.network.node[user_id])
         else:
+            #print('already_present')
             if create_time < self.network.node[user_id][self.USER_CREATE_TIME]:
                 self.network.node[user_id][self.USER_CREATE_TIME] = create_time
+            #print('adjusted...')
 
     def get_tweet_type_count(self, tweet_type):
         if tweet_type is TweetType.RETWEET:
@@ -51,6 +58,10 @@ class TweetsNetwork:
             assert False, "Unknown tweet type!"
 
     def add_edge(self, start, end, tweet_type, create_time):
+        # print(self.network.nodes)
+        # print(start, end, type(start), type(end))
+        # assert self.network.has_node(start)!=True, 'start is not present'
+        # assert self.network.has_node(str(end))!=True, 'end is not present'
         assert start in self.network and end in self.network, "User id does not exist!"
         assert isinstance(tweet_type, TweetType), "Tweet type must be instance of TweetType"
 
@@ -71,15 +82,15 @@ class TweetsNetwork:
 
     def add_retweet_edge(self, tweet):
         if tweet.retweet_author_id not in self.network:
+            #self.add_user(tweet.retweet_author_id, create_time = tweet.retweet_create_time)
+            #logging.info('Added retweeted author id: {} to the network'.format(tweet.retweet_author_id))
             return
-
         self.add_edge(tweet.author_id, tweet.retweet_author_id, TweetType.RETWEET, tweet.create_time)
+        logging.info('added retweet edge...')
 
     def add_quote_edge(self, tweet):
         if tweet.quote_author_id not in self.network:
             return
-
-
         self.add_edge(tweet.author_id, tweet.quote_author_id, TweetType.QUOTE, tweet.create_time)
 
     def add_mention_edge(self, tweet):
@@ -95,17 +106,19 @@ class TweetsNetwork:
     def add_reply_edge(self, tweet):
         if tweet.reply_id not in self.network:
             return
-
-
         self.add_edge(tweet.author_id, tweet.reply_id, TweetType.REPLY, tweet.create_time)
 
     def add_tweet(self, tweet):
         # Retweet do not have any new content, retweet with comment is called quote.
         # Note: It is possible that A retweet a quote, then tweet will contain both retweet_status and quote_status
         # Vice Versa.
+
+        #logging.info('in add_tweet.. function')
+        #print(tweet.retweet)
         if tweet.retweet:
             self.add_retweet_edge(tweet)
-
+            logging.debug('tweet is a retweet')
+            
         if tweet.quote:
             self.add_quote_edge(tweet)
 
@@ -140,13 +153,16 @@ class TweetsNetwork:
         assert show_name != '', "Hashtag shouldn't be empty!"
 
         # Added tweet author to network
-        query_string = {"entities.hashtags.text": show_name}
+        #unique_users = self.read_unique_users(TweetsNetwork.UNIQUE_USERS_FILE)
+        query_string = {'entities.hashtags.text':{'$regex': TweetsNetwork.PATTERN, '$options': 'i'}}
         logging.info('\nQuery Tweets Begin\nQuery string is ' + str(query_string))
         for t in self.coll.find(query_string):
-            #print(t)
+            #print(t['id_str'])
             tweet = Tweet(t)
             self.add_user(tweet.author_id, tweet.create_time)
+        #print('added users')
         tweet_users = self.network.number_of_nodes()
+        #print('getting_info')
         logging.info('Analysis tweets with hashtag {} finished. {} users added.'.format(show_name,tweet_users))
 
         # Added historical tweets
@@ -155,9 +171,10 @@ class TweetsNetwork:
             query_string = {"user.id": author_id}
             for t in self.coll.find(query_string):
                 self.add_tweet(Tweet(t))
-            if count % 1000 == 0:
+                #print('adding..: ',author_id )
+            if count % 100 == 0:
                 logging.info("Historical tweets: {} users done, {} users remain.".format(count, tweet_users))
-            if count % 5000 == 0:
+            if count % 200 == 0:
                 self.save()
             count += 1
 
@@ -166,3 +183,8 @@ class TweetsNetwork:
 
     def save(self, filename='ThisIsUsAdoption_1.graphml'):
         nx.write_graphml(self.network, self.show + ".graphml")
+
+    def read_unique_users(self, file):
+        with open(file, 'r') as infile:
+            unique_users = infile.read().splitlines()
+        return unique_users

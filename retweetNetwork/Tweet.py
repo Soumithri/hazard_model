@@ -24,10 +24,14 @@ class Tweet:
             self.retweet = True
             self.retweet_author_id = int(tweet[Tweet.RETWEET_FIELD]["user"]["id"])
             self.retweet_mentions = [int(user['id']) for user in tweet[Tweet.RETWEET_FIELD]["entities"][Tweet.MENTION]]
+            self.retweet_create_time = int(
+            datetime.datetime.strptime(self.tweet[Tweet.RETWEET_FIELD]['created_at'], 
+                                       "%a %b %d %H:%M:%S %z %Y").timestamp())
         else:
             self.retweet = False
             self.retweet_author_id = None
             self.retweet_mentions = None
+            self.retweet_create_time = None
 
         # Quote field
         if Tweet.QUOTE_FIELD in tweet:

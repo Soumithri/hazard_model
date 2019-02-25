@@ -35,5 +35,7 @@ def get_graphml(input_file):
     graph_info(g)
     print("Remove {} self loops.".format(g.number_of_selfloops()))
     g.remove_edges_from(g.selfloop_edges())
+    # mapping the node labels from string to integer
+    g = nx.relabel_nodes(g, lambda x:int(x))
     graph_info(g)
     return g
