@@ -4,11 +4,20 @@ from Utils.NetworkUtils import get_graphml
 import logging
 from retweetNetwork.Tweet import *
 import timeit
+from datetime import datetime
 TV_SHOW = "StrangerThings"
-FILE = "Tweets"  ### <- Change this to Tweets to create Node, "OLD" to create edges.
-NODE_GRAPH = './StrangerThings1.graphml'
+FILE = "OLD"  ### <- Change this to Tweets to create Node, "OLD" to create edges.
+
+NODE_GRAPH = './StrangerThings.graphml'
 TWEET_COLL = "historical_tweets2"
 OLD_COLL = "stream_tweets"
+
+T1 = datetime.strptime("2017-11-29 11:30:20.000Z", "%Y-%m-%d %H:%M:%S.000Z")
+T2 = datetime.strptime("2017-12-06 11:30:20.000Z", "%Y-%m-%d %H:%M:%S.000Z")
+T3 = datetime.strptime("2017-12-13 11:30:20.000Z", "%Y-%m-%d %H:%M:%S.000Z")
+
+WEEK1 = {'new_created_at': {'$gte': T1 ,'$lt': T2}}
+WEEK2 = {'new_created_at': {'$gte': T2 ,'$lt': T3}}
 
 # Test for Blackish
 # TV_SHOW = "Blackish"
@@ -35,10 +44,11 @@ if __name__ == "__main__":
         print(network.coll)
         print(network.network.nodes)
         for author_id in network.network.nodes():
-            logging.info('Adding historical tweets for authorid:{}'.format(author_id))
+            #break
+            logging.info('Adding streaming tweets for authorid:{}'.format(author_id))
             #print(author_id)
             #print(network.coll.find_one())
-            query_string = {"user.id_str": str(author_id)}  ## node of networkx is string type
+            query_string = {"user.id_str": str(author_id),'new_created_at': {'$gte': T2 ,'$lt': T3}}  ## node of networkx is string type
             #print(network.coll.find_one(query_string))
             for t in network.coll.find(query_string):
                 #print(t['id_str'])

@@ -13,7 +13,7 @@ class TweetsNetwork:
     DB_NAME = 'tweetCorpus'
     COLL_NAME = 'historical_tweets2'
     PATTERN = "^STRANGER"
-    LIMIT = 10
+    BATCH_SIZE = 100
 
     # Edge attribute
     EDGE_CREATE_TIME    = "create_time"
@@ -156,7 +156,7 @@ class TweetsNetwork:
         #unique_users = self.read_unique_users(TweetsNetwork.UNIQUE_USERS_FILE)
         query_string = {'entities.hashtags.text':{'$regex': TweetsNetwork.PATTERN, '$options': 'i'}}
         logging.info('\nQuery Tweets Begin\nQuery string is ' + str(query_string))
-        for t in self.coll.find(query_string):
+        for t in self.coll.find(query_string).batch_size(TweetsNetwork.BATCH_SIZE):
             #print(t['id_str'])
             tweet = Tweet(t)
             self.add_user(tweet.author_id, tweet.create_time)
@@ -169,19 +169,19 @@ class TweetsNetwork:
         count = 0
         for author_id in self.network.nodes():
             query_string = {"user.id": author_id}
-            for t in self.coll.find(query_string):
+            for t in self.coll.find(query_string).batch_size(TweetsNetwork.BATCH_SIZE):
                 self.add_tweet(Tweet(t))
                 #print('adding..: ',author_id )
+            if count % 50 == 0:
+                logging.info("Historical tweets: {} users done, {} users remain.".format(count, tweet_users-count))
             if count % 100 == 0:
-                logging.info("Historical tweets: {} users done, {} users remain.".format(count, tweet_users))
-            if count % 200 == 0:
                 self.save()
             count += 1
 
         tweet_edges = self.network.number_of_edges()
         logging.info('Analysis historical tweets finished. {} edges added.'.format(tweet_edges))
 
-    def save(self, filename='ThisIsUsAdoption_1.graphml'):
+    def save(self, filename='StrangerThings.graphml'):
         nx.write_graphml(self.network, self.show + ".graphml")
 
     def read_unique_users(self, file):

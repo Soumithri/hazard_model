@@ -1,6 +1,6 @@
 import networkx as nx
 import random
-
+import logging
 
 def sample(g, percent):
     """ Create a sample network from g.
@@ -23,7 +23,7 @@ def graph_info(g):
     :param g:   Network
     """
     print("Graph nodes: {}, edges: {}".format(g.number_of_nodes(), g.number_of_edges()))
-
+    logging.info("Graph nodes: {}, edges: {}".format(g.number_of_nodes(), g.number_of_edges()))
 
 def get_graphml(input_file):
     """ Read network from graphml format
